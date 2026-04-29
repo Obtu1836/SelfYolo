@@ -10,5 +10,6 @@ wheels/
 Evaloutput/*
 .vscode/
 .Ds_Store
+checkpoint/*
 # Virtual environments
 .venv
