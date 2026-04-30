@@ -9,8 +9,10 @@ from .neck import SPPF
 from tools.NMS import multi_cls_nms
 from config.v1 import net_param, NetParam
 
+from ..absnet import YOLO
 
-class Yolo(nn.Module):
+
+class Yolo(YOLO):
     def __init__(self,
                  cfg: NetParam,
                  device: str,
@@ -166,3 +168,4 @@ if __name__ == '__main__':
     res = model(data)
     # print(model)
     print(res)
+# python -m Net.v1.yolov1  运行模块文件

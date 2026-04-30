@@ -65,9 +65,13 @@ def cal_giou(boxes1: th.Tensor, boxes2: th.Tensor, mode: Literal['giou', 'iou'] 
     计算两个长度相等 相同索引的框的loss
     iou和giou都能反应框的重叠程度,但是giou会额外考虑两个框空出来的面积 也就是最小外接矩形
     比iou更严格 而且 当两个框不重叠时 iou=0,不能反应两个框是稍微远 还是很远 giou可能会变成负数
-    并且两个框越远 外接框面积越大 giou越小
+    并且两个框越远 外接框面积越大 giou越小 当两个框不重叠且距离较远 反而是负数
 
     公式 iou-(c-u)/c   c:外接面积 u 两个框的并集
+
+    在二元交叉熵中 -log(sigmoid(f(x))) 当使用iou计算时 损失函数值-log(sigmoid(0))=0.69
+                                      使用giou计算时 损失函数值-log(sigmoid(-0.2))=0.79
+                                      也就是说使用giou时 两个框越远 损失函数值越大 iou实现不了 因为iou最小为0
     '''
     boxes1 = boxes1.float()
     boxes2 = boxes2.float()
@@ -106,6 +110,29 @@ def cal_giou(boxes1: th.Tensor, boxes2: th.Tensor, mode: Literal['giou', 'iou'] 
     # giou = th.nan_to_num(giou, nan=-1.0)   # 或 nan=0.0，按你偏好选择
 
     return giou
+
+
+
+def mul_cls_nms_label(  boxes:NDArray,        #(m,4)
+                        labels:NDArray,       #(m,)
+                        scores:NDArray,       #(m,)
+                        nms_thresh:float,
+                        num_class:int):
+    
+    keep=np.zeros(len(boxes),dtype=bool)
+    for i in range(num_class):
+        ind=np.where(labels==i)[0]
+        if len(ind)==0:
+            continue
+        c_boxes=boxes[ind]
+        c_scores=scores[ind]
+        idx=nms(c_boxes,c_scores,nms_thresh)
+        keep[ind[idx]]=True
+    
+    boxes=boxes[keep]
+    labels=labels[keep]
+    scores=scores[keep]
+    return boxes,labels,scores
 
 
 if __name__ == '__main__':

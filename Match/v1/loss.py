@@ -1,18 +1,23 @@
 from torch.nn import functional as f
 from .matcher import Matcher
 from tools.NMS import cal_giou
+from config.v1 import NetParam,net_param
 
 class Criterion:
-    def __init__(self,
-                 weight:list[float],
-                 num_class:int,
+    def __init__(self,net_param:NetParam,
+                #  weight:list[float],
+                #  num_class:int,
                  ):
-        self.weight_obj, self.weight_cls, self.weight_boxes = weight
-        # self.weight_noobj = 0.5
-        self.matcher = Matcher(num_class)
-        self.num_class = num_class
+        # self.weight_obj, self.weight_cls, self.weight_boxes = weight
+        self.weight_obj, self.weight_cls, self.weight_boxes = net_param.loss_weight
 
-    def __call__(self, pred, target):
+        # self.weight_noobj = 0.5
+        # self.matcher = Matcher(num_class)
+        # self.num_class = num_class
+        self.matcher=Matcher(net_param.num_class)
+        self.num_class=net_param.num_class
+
+    def __call__(self, pred, target,epoch=None):
         device = pred['pred_cls'][0].device
         stride = pred['stride']
         fmp_size = pred['fmp_size']
@@ -22,9 +27,9 @@ class Criterion:
         pred_boxes = pred['pred_bboxes'].view(-1, 4)  # (b*m,4)
 
         gt_obj, gt_cls, gt_boxes = self.matcher(fmp_size, stride, target)
-        gt_obj = gt_obj.view(-1).to(device).float()
-        gt_cls = gt_cls.view(-1, self.num_class).to(device).float()
-        gt_boxes = gt_boxes.view(-1, 4).to(device).float()
+        gt_obj = gt_obj.view(-1).to(device)
+        gt_cls = gt_cls.view(-1, self.num_class).to(device)
+        gt_boxes = gt_boxes.view(-1, 4).to(device)
 
         pos_mask = gt_obj > 0 #正样本
         # neg_mask = ~pos_mask #负样本
@@ -72,8 +77,8 @@ class Criterion:
         loss = 1 - giou
         return loss
 
-def build_criterion(weights:list[float], num_class:int,):
-    return Criterion(weights, num_class)
+def build_criterion(net_param:NetParam,args):
+    return Criterion(net_param)
 
 
 

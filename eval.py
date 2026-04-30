@@ -3,11 +3,12 @@ import numpy as np
 from numpy.typing import NDArray
 import pickle
 import xml.etree.ElementTree as ET
-from Net.v1.yolov1 import Yolo
 import time
 from typing import Callable
-from config.v1 import dataset_param
 from utils.dataset import VOC_CLASSES, VOCDection
+# from Net.v1.yolo import Yolo
+from Net.absnet import YOLO
+from config.v1 import dataset_param
 
 
 class Evaluator:
@@ -35,7 +36,7 @@ class Evaluator:
                                   )
         self.labelmap = VOC_CLASSES
 
-    def evaluate(self, model: Yolo):
+    def evaluate(self, model: YOLO):
         bboxes = self.detect(model)
         self.record_detect(bboxes)
         del bboxes
@@ -315,7 +316,7 @@ if __name__ == '__main__':
     # p = eval.anno_path('000001')
     # pc = eval.parse_rec(p)
     # print(pc)
-    from Net.v1.yolov1 import build_yolo
+    from Net.v1.yolo import build_yolo
     from config.v1 import net_param
     device = 'cuda'
     model = build_yolo(net_param, device, 0.005, 0.5, False)

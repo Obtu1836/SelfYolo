@@ -8,7 +8,7 @@ from pathlib import Path
 from utils.dataset import VOC_CLASSES
 from config.v1 import net_param
 from tools.letterbox import letter
-from Net.v1.yolov1 import build_yolo
+from Net.v1.yolo import build_yolo
 
 
 def load_model(
@@ -49,7 +49,7 @@ def drawing(img: NDArray, bboxes: NDArray, scores: NDArray, labels: NDArray):
 
 def main(args, image_path):
     weight_path = Path(
-        r'checkpoint\model_best.pth')
+        r'checkpoint\v1_model_best.pth')
     model = load_model(weight_path, args.conf, args.nms, args.device)
 
     img_path = image_path
@@ -63,7 +63,7 @@ def main(args, image_path):
     t0 = time.time()
     with th.no_grad():
         bboxes, scores, labels = model(img_tensor)
-    ts = round(time.time()-t0)
+    ts = round(time.time()-t0,5)
     print(f'cost time {ts} s')
     origh, origw = ori_img.shape[:2]
     if len(bboxes) > 0:
@@ -79,7 +79,7 @@ def main(args, image_path):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='test')
     parser.add_argument('--device', default='cpu', type=str)
-    parser.add_argument('--shape', default=480, type=int)
+    parser.add_argument('--shape', default=640, type=int)
     parser.add_argument('--nms', default=0.5, type=float)
     parser.add_argument('--conf', default=0.5, type=float)
 
