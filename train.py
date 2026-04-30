@@ -10,21 +10,22 @@ from torch.nn import functional as f
 
 from utils.dataset import build_datasets, build_dataloader, Collate
 from utils.transforms import build_transform
-from config.v1 import net_param, dataset_param, DatasetParam
 from tools.optim import build_optimizer, build_lr_scheduler
 from tools.compute_flops import compute
-from Net.v1.yolov1 import build_yolo, Yolo
-from Match.v1.loss import build_criterion
 from eval import build_eval
 
+from config.v1 import net_param, dataset_param, DatasetParam
 
+from building.build_train import build_net
+
+from Net.absnet import YOLO
 class Trainer:
     def __init__(
                     self,
                     dataset_param: DatasetParam,
                     device: str,
                     img_size: int,
-                    model: Yolo,
+                    model:YOLO,
                     criterion: Callable,
                     optimizer_name: str,
                     lr_scheduler_name: str,
@@ -57,8 +58,7 @@ class Trainer:
         self.amp_enabled = amp and self.device_type == "cuda"
         self.autocast_dtype: Optional[th.dtype] = th.float16 if self.amp_enabled else None
         self.use_grad_scaler = self.amp_enabled
-        if amp and self.amp_enabled:
-            
+        if self.amp_enabled:
             print('使用混合精度+梯度缩放')
             self.accumulate = max(1, round(64 / batch_size))
             print(f"Grad accumulate {self.accumulate}")
@@ -67,8 +67,7 @@ class Trainer:
         self.scaler: Optional[th.amp.GradScaler] = None  # type: ignore
         if self.device_type == "cuda":
             self.scaler = th.amp.GradScaler(  # type: ignore
-                "cuda",
-                enabled=self.use_grad_scaler,
+                enabled=self.use_grad_scaler,#控制梯度缩放是否开启
             )
 
         # 构建预处理和数据集构造
@@ -113,7 +112,7 @@ class Trainer:
 
         
 
-    def train(self, model: Yolo):
+    def train(self, model:YOLO):
         if self.mul_scale:
             print("启用多尺度训练")
         for epoch in range(self.start_epoch, self.epoches):
@@ -123,7 +122,7 @@ class Trainer:
             if (self.cur_epoch+1) % 5 == 0:
                 self.eval(model)
 
-    def train_one_epoch(self, model: Yolo):
+    def train_one_epoch(self, model: YOLO):
         model.train()
         model.is_train = True
         epoch_size = len(self.train_loader)
@@ -209,7 +208,7 @@ class Trainer:
             boxes = th.clamp(boxes, 0, old_shape)
             boxes[:, :4] *= new_shape/old_shape
             delta_wh = boxes[:, 2:]-boxes[:, :2]
-            min_size = th.min(delta_wh, dim=-1)[0]
+            min_size = th.min(delta_wh, dim=-1)[0]#取最短边用来和阈值比较
             ind = min_size >= min_box_size
             tgt['boxes'] = boxes[ind]
             tgt['labels'] = labels[ind]
@@ -240,7 +239,7 @@ class Trainer:
 
         return log
 
-    def eval(self, model: Yolo):
+    def eval(self, model: YOLO):
         print('Evaluation model ....')
         model.eval()
         model.is_train = False
@@ -252,7 +251,7 @@ class Trainer:
         if cur_map > self.best_map:
             self.best_map = cur_map
             print('Saving epoch', self.cur_epoch+1)
-            weight_name = 'model_best.pth'
+            weight_name = 'model_best.pth' #默认的
             checkpoint_dir = Path(f'checkpoint')
             checkpoint_dir.mkdir(exist_ok=True)
             checkpoint_path = checkpoint_dir/weight_name
@@ -268,11 +267,12 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description='training')
     parser.add_argument('--device', default='cpu', type=str)
-    parser.add_argument('--img_size', default=640, type=int)
+    parser.add_argument('--img_size', default=480, type=int)
     parser.add_argument('--optim', default='sgd', type=str,
                         choices=['sgd', 'adam'], help='optimizer')
     parser.add_argument('--sche', default='linear', type=str,
                         choices=['linear', 'cosine'])
+    parser.add_argument('--topk',default=1000,type=int)
     parser.add_argument('--batch_size', default=64, type=int)
     parser.add_argument('-ms', action='store_true', default=False)
     parser.add_argument('--epochs', default=150, type=int)
@@ -286,18 +286,10 @@ if __name__ == '__main__':
 
     device = args.device
     resume_state = None
-    model = build_yolo(net_param,
-                       device,
-                       conf_thresh=args.conf,
-                       nms_thresh=args.nms,
-                       is_train=True)
+  
+    model,critertion=build_net('v2',args)
 
-    critertion = build_criterion(
-        weights=net_param.loss_weight,
-        num_class=net_param.num_class,
-    )
-
-    save_path = Path(r'checkpoint\model_best_fp_ms_adam-640_32.pth')
+    save_path = Path(r'checkpoint\model_best.pth')
     if args.resume:
         checkpoint = th.load(
             save_path, map_location=device, weights_only=False)

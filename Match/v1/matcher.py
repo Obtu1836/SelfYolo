@@ -58,9 +58,9 @@ class Matcher:
                     [x1, y1, x2, y2], dtype=np.float32)
                 '记录真实的框的位置 因为网络输出时 输出的预测的真实的框的位置'
         
-        gt_obj=th.from_numpy(gt_obj).reshape(bs,-1,1).float()
-        gt_cls=th.from_numpy(gt_cls).reshape(bs,-1,self.num_class).float()
-        gt_boxes=th.from_numpy(gt_boxes).reshape(bs,-1,4).float()
+        gt_obj=th.from_numpy(gt_obj).float()
+        gt_cls=th.from_numpy(gt_cls).float()
+        gt_boxes=th.from_numpy(gt_boxes).float()
 
         return gt_obj,gt_cls,gt_boxes
     
