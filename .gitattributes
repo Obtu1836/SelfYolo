@@ -1,0 +1,7 @@
+# 默认所有文本文件在检入仓库时强制转换为 LF
+* text eol=lf
+
+# 显式指定不需要转换的二进制文件（如模型权重）
+*.pth binary
+*.jpg binary
+*.png binary

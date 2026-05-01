@@ -27,6 +27,7 @@ class Yolo(YOLO):
         self.num_class = cfg.num_class
         self.topk = topk
         self.stride = 32
+        self.base=416
         self.is_train = is_train
 
         self.anchor_size = th.as_tensor(cfg.anchor_size).float().view(-1, 2)
@@ -87,7 +88,8 @@ class Yolo(YOLO):
         某一维度上的扩展
         '''
         h, w = fmp_size
-
+        input_h=h*self.stride
+        scale=input_h/self.base  #配置文件中的anchor是在416的图像中聚类得到 需要缩放
         gy, gx = th.meshgrid(th.arange(h), th.arange(w), indexing='ij')
         grid = th.stack([gx, gy], dim=-1).float().view(-1, 2)  # (h*w,2)  m=h*w
 
@@ -96,7 +98,8 @@ class Yolo(YOLO):
         grid = grid.to(self.device)
 
         # (k,2)->(1,k,2)->(m,k,2)将anchor扩展到每个网格
-        anchors = self.anchor_size[None, :].repeat(h*w, 1, 1)
+        anchors=self.anchor_size*scale
+        anchors = anchors[None, :].repeat(h*w, 1, 1)
         # (m,k,2)->(m*k,2)=(h*w*k,2) 变形
         anchors = anchors.view(-1, 2).to(self.device)
 
@@ -107,7 +110,7 @@ class Yolo(YOLO):
     def decode_boxes(self, anchors: th.Tensor, pred_boxes: th.Tensor):
         # 返回x1,y1,x2,y2格式的boxes
         # (b,h*w*k,2)+(h*w*k,2)
-        pred_cxy = th.sigmoid(pred_boxes[..., :2])+anchors[..., :2]*self.stride
+        pred_cxy = (th.sigmoid(pred_boxes[..., :2])+anchors[..., :2])*self.stride
         # anchor中的w,h数值是基于输入尺寸的 所以最后不需要*步长· v1是需要*步长的
         pred_wh = th.exp(pred_boxes[..., 2:])*anchors[..., 2:]
         # (cx,cy,w,h)--->(x1,y1,x2,y2)

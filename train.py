@@ -81,9 +81,7 @@ class Trainer:
             self.traindataset,
             batch_size,
             dataset_param.num_workers,
-            Collate(),
-            pin_memory=self.device_type == "cuda",
-        )
+            Collate())
 
         # 构建优化器
         self.optimizer, self.scaler, self.start_epoch = build_optimizer(
@@ -260,7 +258,7 @@ class Trainer:
                      'optimizer': self.optimizer.state_dict(),
                      'lr_scheduler': self.lr_scheduler.state_dict(),
                      'scaler': self.scaler.state_dict() if self.scaler else None,
-                     'epoch': self.cur_epoch, }, checkpoint_path)
+                     'epoch': self.cur_epoch+1, }, checkpoint_path)
 
 
 if __name__ == '__main__':

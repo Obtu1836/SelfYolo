@@ -9,4 +9,4 @@ Net:
 
 dataset:
     basepath: "D:/program/VOCdevkit"
-    num_workers: 8
+    num_workers: 0

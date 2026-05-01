@@ -6,9 +6,9 @@ import torch as th
 import time
 from pathlib import Path
 from utils.dataset import VOC_CLASSES
-from config.v1 import net_param
+from config.v2 import net_param
 from tools.letterbox import letter
-from Net.v1.yolo import build_yolo
+from Net.v2.yolo import build_yolo
 
 
 def load_model(
@@ -17,8 +17,8 @@ def load_model(
         nms: float,
         device: str,
 ):
-    model = build_yolo(net_param, device, conf_thresh=conf,
-                       nms_thresh=nms, is_train=False)
+    model = build_yolo(net_param, device, conf=conf,
+                       nms=nms, topk=100,is_train=False)
     model.to(device)
     check = th.load(weight_path, map_location=device, weights_only=False)
     state = check.get('model', None)
@@ -49,7 +49,7 @@ def drawing(img: NDArray, bboxes: NDArray, scores: NDArray, labels: NDArray):
 
 def main(args, image_path):
     weight_path = Path(
-        r'checkpoint\v1_model_best.pth')
+        r'checkpoint\model_best.pth')
     model = load_model(weight_path, args.conf, args.nms, args.device)
 
     img_path = image_path
@@ -85,6 +85,6 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    image_path = r'D:\program\VOCdevkit\VOC2007x\JPEGImages\008446.jpg'
+    image_path = r'D:\program\VOCdevkit\VOC2007x\JPEGImages\000013.jpg'
 
     main(args, image_path)

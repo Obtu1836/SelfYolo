@@ -155,18 +155,15 @@ def build_dataloader(
     dataset: VOCDection,
     batch_size: int,
     num_workers: int,
-    collate: Callable = Collate(),
-    pin_memory: bool = False,
-):
+    collate: Callable = Collate()):
     sample = RandomSampler(dataset)
     batch_sampler = BatchSampler(sample, batch_size, drop_last=True)
     loader = DataLoader(
         dataset,
         batch_sampler=batch_sampler,
         collate_fn=collate,
-        num_workers=num_workers,
-        pin_memory=pin_memory,
-    )
+        num_workers=num_workers)
+    
     return loader
 
 

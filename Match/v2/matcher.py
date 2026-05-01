@@ -11,6 +11,7 @@ class Matcher:
         self.num_class = num_class
         self.iou_thresh = iou_thresh
         self.anchor_size = anchor_size
+        self.base_anchor=416
         self.num_anchor = len(anchor_size)
 
         self.anchor_box = np.array([[0, 0, anchor[0], anchor[1]]
@@ -26,6 +27,8 @@ class Matcher:
 
         bs = len(targets)
         fmp_h, fmp_w = fmp_size
+        input_h=fmp_h*stride
+        scale=input_h/self.base_anchor
 
         gt_objness = np.zeros(
             (bs, fmp_h, fmp_w, self.num_anchor, 1), dtype=np.float32)
@@ -46,7 +49,7 @@ class Matcher:
                 gt_box = [0, 0, bw, bh]  # 转化为中心点重合形式用于计算和anchor的iou
                 if bw < 1 or bh < 1:
                     continue
-                iou = self.compute_iou(self.anchor_box, gt_box)  # (N,)
+                iou = self.compute_iou(self.anchor_box*scale, gt_box)  # (N,)
                 iou_mask = iou > self.iou_thresh  # 通过bool值筛选iou大于阈值的
                 label_results = []  # 保存符合的坐标 (gy,gx,anchor)
                 if iou_mask.sum() == 0:

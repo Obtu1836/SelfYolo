@@ -181,8 +181,8 @@ class Evaluator:
         BB = BB[sorted_ind, :]  # 将预测框按置信度排序
         image_name = [image_name[ind] for ind in sorted_ind]  # 名称也按图片排序 保持对应
 
-        num = len(image_name)
-        tp = np.zeros(num)
+        num = len(image_name)  # 所有的预测框
+        tp = np.zeros(num) 
         fp = np.zeros(num)
 
         # 计算同一个类别下 同一张图片里 将预测框和标注框使用iou进行匹配
@@ -218,11 +218,11 @@ class Evaluator:
                         fp[d] = 1
             else:
                 fp[d] = 1
-            '''以上代码意思为 如果预测框和标注框的iou都小于阈值 则该预测框fd=1 
-            如果预测框匹配到已经匹配过的 同样说明该预测框错误 fd=1 
+            '''以上代码意思为 如果预测框和标注框的iou都小于阈值 则该预测框fp=1 
+            如果预测框匹配到已经匹配过的 同样说明该预测框错误 fp=1 
             如果能匹配到而且标注框不是困难的 则认为匹配成功 并标记标注框 防止别的预测框再匹配一次'''
 
-        fp = np.cumsum(fp)
+        fp = np.cumsum(fp) 
         tp = np.cumsum(tp)
 
         if npos == 0:
