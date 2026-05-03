@@ -234,6 +234,8 @@ class Trainer:
         for k in loss_dict.keys():
             log += f'[{k}: {loss_dict[k]:.4f} ]'
         log += f'[Size:{new_shape}]'
+        cur_lr=(self.lr_scheduler.get_last_lr()[0])
+        log+=f" lr: {round(cur_lr,6)}" #type: ignore
 
         return log
 
@@ -258,7 +260,7 @@ class Trainer:
                      'optimizer': self.optimizer.state_dict(),
                      'lr_scheduler': self.lr_scheduler.state_dict(),
                      'scaler': self.scaler.state_dict() if self.scaler else None,
-                     'epoch': self.cur_epoch+1, }, checkpoint_path)
+                     'epoch': self.cur_epoch}, checkpoint_path)
 
 
 if __name__ == '__main__':

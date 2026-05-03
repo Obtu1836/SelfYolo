@@ -11,5 +11,7 @@ Evaloutput/*
 .vscode/
 .Ds_Store
 checkpoint/*
+commit.txt
+record.md
 # Virtual environments
 .venv

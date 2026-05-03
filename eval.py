@@ -299,6 +299,8 @@ def parse_element(obj: ET.Element, tag: str):
     node = obj.find(tag)
     if node is None or node.text is None:
         raise ValueError('anno wrong')
+    if tag=='name':
+        return node.text
     return int(node.text)
 
 
