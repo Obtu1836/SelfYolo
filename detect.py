@@ -8,19 +8,15 @@ from pathlib import Path
 from utils.dataset import VOC_CLASSES
 from config.v2 import net_param
 from tools.letterbox import letter
-from Net.v2.yolo import build_yolo
+from building.build_train import build_net
 
 
-def load_model(
+def load_model(args,
         weight_path: Path,
-        conf: float,
-        nms: float,
-        device: str,
 ):
-    model = build_yolo(net_param, device, conf=conf,
-                       nms=nms, topk=100,is_train=False)
-    model.to(device)
-    check = th.load(weight_path, map_location=device, weights_only=False)
+    model,_= build_net(args,is_train=False)
+    model.to(args.device)
+    check = th.load(weight_path, map_location=args.device, weights_only=False)
     state = check.get('model', None)
     model.load_state_dict(state)
     model.eval()
@@ -49,8 +45,8 @@ def drawing(img: NDArray, bboxes: NDArray, scores: NDArray, labels: NDArray):
 
 def main(args, image_path):
     weight_path = Path(
-        r'checkpoint\model_best.pth')
-    model = load_model(weight_path, args.conf, args.nms, args.device)
+        r'checkpoint/{}_model_best.pth'.format(args.version))
+    model = load_model(args,weight_path)
 
     img_path = image_path
     ori_img = cv2.imread(img_path)
@@ -78,13 +74,15 @@ def main(args, image_path):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='test')
-    parser.add_argument('--device', default='cpu', type=str)
+    parser.add_argument('--device', default='mps', type=str)
     parser.add_argument('--shape', default=640, type=int)
     parser.add_argument('--nms', default=0.5, type=float)
-    parser.add_argument('--conf', default=0.5, type=float)
+    parser.add_argument('--conf', default=0.35, type=float)
+    parser.add_argument('--version','-v',default='v2',type=str,choices=['v1','v2'])
+    parser.add_argument('--topk',default=200,type=int)
 
     args = parser.parse_args()
 
-    image_path = r'D:\program\VOCdevkit\VOC2007x\JPEGImages\000013.jpg'
+    image_path = r'/Users/mac/program/VOCdevkit/VOC2007x/JPEGImages/000715.jpg'
 
     main(args, image_path)

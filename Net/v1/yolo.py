@@ -167,5 +167,5 @@ if __name__ == '__main__':
     model.to(device)
     res = model(data)
     # print(model)
-    print(res)
-# python -m Net.v1.yolov1  运行模块文件
+    print(len(res))
+# python -m Net.v1.yolo  运行模块文件

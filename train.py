@@ -266,7 +266,7 @@ class Trainer:
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description='training')
-    parser.add_argument('--device', default='cpu', type=str)
+    parser.add_argument('--device', default='mps', type=str)
     parser.add_argument('--img_size', default=480, type=int)
     parser.add_argument('--optim', default='sgd', type=str,
                         choices=['sgd', 'adam'], help='optimizer')
@@ -281,15 +281,16 @@ if __name__ == '__main__':
     parser.add_argument('-r', '--resume', action='store_true', default=False)
     parser.add_argument("-amp", action="store_true",
                         default=False, help="enable mixed precision")
+    parser.add_argument('--version','-v',default='v2',type=str)
 
     args = parser.parse_args()
 
     device = args.device
     resume_state = None
   
-    model,critertion=build_net('v2',args)
+    model,critertion=build_net(args)
 
-    save_path = Path(r'checkpoint\model_best.pth')
+    save_path = Path(r'checkpoint\{args.version}_best_model.pth')
     if args.resume:
         checkpoint = th.load(
             save_path, map_location=device, weights_only=False)

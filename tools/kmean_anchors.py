@@ -178,13 +178,28 @@ def anchor_box_kmean(boxes:NDArray,k:int,rtol:float,
 #     iou = inter/(s1+s2-inter)
 #     return iou
 
+
+def sort_boxes(boxes:NDArray):
+    w,h=boxes[:,0],boxes[:,1]
+
+    area=w*h
+    sort_idx=np.argsort(area)
+
+    bx=boxes[sort_idx]
+
+    return bx
+
+
 def main():
-    path = r"D:\program\VOCdevkit"
+    path = r"/Users/mac/program/VOCdevkit"
     boxes=collect_voc_box(path,416)
     boxes=box_to_array(boxes)
-    anchors=anchor_box_kmean(boxes,5,1e-6)
+    anchors=anchor_box_kmean(boxes,9,1e-6)
     # anchors=anchor_box_kmean(boxes,5,20000,plus=False)
-    print(anchors)
+    # print(anchors)
+    new=sort_boxes(anchors)
+    print(new)
+    return new
 
 if __name__ == '__main__':
     main()
