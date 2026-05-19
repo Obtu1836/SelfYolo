@@ -4,6 +4,7 @@ from typing import Optional
 import torch as th
 from torch import nn
 from torch.optim import SGD, Adam
+from config.v3 import logger
 
 
 def build_optimizer(
@@ -33,7 +34,7 @@ def build_optimizer(
 
     if optim_dict["optimize"] == "adam":
         optimizer = Adam(g[2], lr=optim_dict["lr0"])
-        print(f'优化器: Adam')
+        logger.info(f'优化器: Adam')
     elif optim_dict["optimize"] == "sgd":
         optimizer = SGD(
             g[2],
@@ -41,7 +42,7 @@ def build_optimizer(
             momentum=optim_dict["momentum"],
             nesterov=True,
         )
-        print(f'优化器: SGD ')
+        logger.info(f'优化器: SGD ')
     else:
         raise NotImplementedError("optimizer not implement")
 

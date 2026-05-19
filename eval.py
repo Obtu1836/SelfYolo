@@ -52,16 +52,18 @@ class Evaluator:
         for i in range(num_images):
             image = self.dataset.pull_image(i)
             h, w, _ = image.shape
-            x, _ = self.transform(image, None)
-            x = x[None, ...].to(self.device)/255
+            x, _, scale = self.transform(image, None)
+            x = x[None, ...].to(self.device) / 255
 
             t0 = time.time()
             boxes, scores, labels = model(x)
             detect_time = round(time.time()-t0, 5)
-            origin_shape = [h, w]
-            cur_shape = [*x.shape[-2:]]
-            boxes = self.rescale_bboxes(boxes, origin_shape, cur_shape)
-
+            if len(boxes) > 0:
+                boxes = boxes.copy()
+                boxes /= scale
+                boxes[..., [0, 2]] = np.clip(boxes[..., [0, 2]], 0, w)
+                boxes[..., [1, 3]] = np.clip(boxes[..., [1, 3]], 0, h)
+                
             for j in range(len(self.labelmap)):
                 ind = np.where(labels == j)[0]
                 if len(ind) == 0:
@@ -113,11 +115,11 @@ class Evaluator:
 
         for i, cls in enumerate(self.labelmap):
             file_name = self.cls_file(cls)  # 按类别保存的预测信息
-            rec,prec,ap=self.calculate_cls_ap(file_name, cls, cachedir,
-                                  iou_thresh=0.5, use_07=use_07)
-            aps+=[ap]
-        
-        self.map=np.mean(aps)
+            rec, prec, ap = self.calculate_cls_ap(file_name, cls, cachedir,
+                                                  iou_thresh=0.5, use_07=use_07)
+            aps += [ap]
+
+        self.map = np.mean(aps)
 
         print(f'Mean AP: {self.map:.4f}')
 
@@ -153,7 +155,8 @@ class Evaluator:
         class_recs = {}
         npos = 0
         for image_name in tgt_image_names:
-            R = [obj for obj in recs[image_name] if obj['name'] == cls_name]  # 标注
+            R = [obj for obj in recs[image_name]
+                 if obj['name'] == cls_name]  # 标注
             box = np.array([x['box'] for x in R])
             difficult = np.array([x['difficult'] for x in R], dtype=bool)
             det = [False]*len(R)
@@ -182,7 +185,7 @@ class Evaluator:
         image_name = [image_name[ind] for ind in sorted_ind]  # 名称也按图片排序 保持对应
 
         num = len(image_name)  # 所有的预测框
-        tp = np.zeros(num) 
+        tp = np.zeros(num)
         fp = np.zeros(num)
 
         # 计算同一个类别下 同一张图片里 将预测框和标注框使用iou进行匹配
@@ -222,7 +225,7 @@ class Evaluator:
             如果预测框匹配到已经匹配过的 同样说明该预测框错误 fp=1 
             如果能匹配到而且标注框不是困难的 则认为匹配成功 并标记标注框 防止别的预测框再匹配一次'''
 
-        fp = np.cumsum(fp) 
+        fp = np.cumsum(fp)
         tp = np.cumsum(tp)
 
         if npos == 0:
@@ -282,30 +285,18 @@ class Evaluator:
             objects.append(obj_struct)
         return objects
 
-    def rescale_bboxes(self, bboxes, origin_shape, cur_shape):
-
-        orih, oriw = origin_shape
-        curh, curw = cur_shape
-        bboxes[..., [0, 2]] = bboxes[..., [0, 2]]*oriw/curw
-        bboxes[..., [1, 3]] = bboxes[..., [1, 3]]*orih/curh
-
-        bboxes[..., [0, 2]] = np.clip(bboxes[..., [0, 2]], a_min=0, a_max=oriw)
-        bboxes[..., [1, 3]] = np.clip(bboxes[..., [1, 3]], a_min=0, a_max=orih)
-
-        return bboxes
-
 
 def parse_element(obj: ET.Element, tag: str):
     node = obj.find(tag)
     if node is None or node.text is None:
         raise ValueError('anno wrong')
-    if tag=='name':
+    if tag == 'name':
         return node.text
     return int(node.text)
 
 
-def build_eval(path,transform,device):
-    return Evaluator(path,transform,device)
+def build_eval(path, transform, device):
+    return Evaluator(path, transform, device)
 
 
 if __name__ == '__main__':

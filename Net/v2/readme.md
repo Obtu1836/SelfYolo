@@ -47,6 +47,8 @@ python train.py --device cuda --img_size 640 --batch_size 32 --optim sgd --sche 
 断点恢复示例：
 ```bash
 python train.py --device cuda --img_size 640 --batch_size 32 --resume
+
+当前 权重 是在 img_siz=640的情况下训练 (没有开启多尺度训练)
 ```
 
 参数说明与注意事项：
@@ -59,5 +61,4 @@ python train.py --device cuda --img_size 640 --batch_size 32 --resume
 - `Match/v2/matcher.py`, `Match/v2/loss.py` 
 - `config/v2/v2.yaml`（超参：anchors、head 层数、loss 权重）
 
-如需我把 README 中某段展开（例如给出 matcher 的数值示例、或将 postprocess 的 top-k 筛选步骤可视化），我可以继续补充并写入该文件。
 

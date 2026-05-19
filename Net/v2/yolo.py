@@ -105,11 +105,12 @@ class Yolo(YOLO):
 
         anchors = th.cat([grid, anchors], dim=-1)  # (h*w*k,4)
 
+
         return anchors
 
     def decode_boxes(self, anchors: th.Tensor, pred_boxes: th.Tensor):
-        # 返回x1,y1,x2,y2格式的boxes
-        # (b,h*w*k,2)+(h*w*k,2)
+        #返回x1,y1,x2,y2格式的boxes
+        #(b,h*w*k,2)+(h*w*k,2)
         pred_cxy = (th.sigmoid(pred_boxes[..., :2])+anchors[..., :2])*self.stride
         # anchor中的w,h数值是基于输入尺寸的 所以最后不需要*步长· v1是需要*步长的
         pred_wh = th.exp(pred_boxes[..., 2:])*anchors[..., 2:]
@@ -118,6 +119,7 @@ class Yolo(YOLO):
         pred_x2y2 = pred_cxy+0.5*pred_wh
 
         pred_boxes = th.cat([pred_x1y1, pred_x2y2], dim=-1)
+        
         return pred_boxes
 
     @th.no_grad()

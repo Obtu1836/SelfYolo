@@ -12,11 +12,15 @@ from utils.dataset import build_datasets, build_dataloader, Collate
 from utils.transforms import build_transform
 from tools.optim import build_optimizer, build_lr_scheduler
 from tools.compute_flops import compute
+from tools.get_device import get_device
 from eval import build_eval
 
 from config.v1 import net_param, dataset_param, DatasetParam
-
+from config.v3 import logger
 from building.build_train import build_net
+
+from rich.progress import Progress, BarColumn, TextColumn, TimeRemainingColumn
+
 
 from Net.absnet import YOLO
 class Trainer:
@@ -59,11 +63,11 @@ class Trainer:
         self.autocast_dtype: Optional[th.dtype] = th.float16 if self.amp_enabled else None
         self.use_grad_scaler = self.amp_enabled
         if self.amp_enabled:
-            print('使用混合精度+梯度缩放')
+            logger.info('使用混合精度+梯度缩放')
             self.accumulate = max(1, round(64 / batch_size))
-            print(f"Grad accumulate {self.accumulate}")
+            logger.info(f"Grad accumulate {self.accumulate}")
         else:
-            print(f"{self.device_type.upper()} 不启用混合精度和梯度缩放，已回退到 FP32。")
+            logger.info(f"{self.device_type.upper()} 不启用混合精度和梯度缩放，已回退到 FP32。")
         self.scaler: Optional[th.amp.GradScaler] = None  # type: ignore
         if self.device_type == "cuda":
             self.scaler = th.amp.GradScaler(  # type: ignore
@@ -100,19 +104,19 @@ class Trainer:
             resume_state=resume_state,
         )
 
-        # print('resume start_epoch:', self.start_epoch)
-        # print('optimizer lr:', [g['lr'] for g in self.optimizer.param_groups])
-        # print('lr_scheduler last_epoch:', getattr(self.lr_scheduler, 'last_epoch', None))
-        # print('scaler restored:', self.scaler is not None)
+        # logger.info('resume start_epoch:', self.start_epoch)
+        # logger.info('optimizer lr:', [g['lr'] for g in self.optimizer.param_groups])
+        # logger.info('lr_scheduler last_epoch:', getattr(self.lr_scheduler, 'last_epoch', None))
+        # logger.info('scaler restored:', self.scaler is not None)
 
         self.evaluator = build_eval(
             dataset_param.basepath, self.testtransform, device)
 
-        
+        self.loss_log=logger.bind(loss=True)
 
     def train(self, model:YOLO):
         if self.mul_scale:
-            print("启用多尺度训练")
+            logger.info("启用多尺度训练")
         for epoch in range(self.start_epoch, self.epoches):
             self.cur_epoch = epoch
             self.train_one_epoch(model)
@@ -127,56 +131,65 @@ class Trainer:
         t0 = time.time()
         # 这一步的梯度清零兜底作用 比如继续训练时 读取的状态可能存在未清零
         self.optimizer.zero_grad()
+        desc = f'{self.cur_epoch + 1}/{self.epoches}'
+        with Progress(
+                TextColumn("[progress.description]{task.description}"),
+                BarColumn(),
+                TextColumn("{task.percentage:>3.0f}%"),
+                TextColumn(" loss:{task.fields[loss]:.4f}"),
+                TimeRemainingColumn(),
+                refresh_per_second=10) as progress:
+            task_id = progress.add_task(desc, total=epoch_size, loss=0.0)
 
-        for iter_i, (images, targets) in enumerate(self.train_loader):
-            images = images.to(self.device).float() / 255.0
-            shape = images.shape[-1]
-            if self.mul_scale:  # 多尺度训练
-                images, targets, shape = self.rescale_image_target(
-                    images, targets)
-            else:
-                targets = self.refine_targets(targets)
+            for iter_i, (images, targets) in enumerate(self.train_loader):
+                images = images.to(self.device).float() / 255.0
+                shape = images.shape[-1]
+                if self.mul_scale:  # 多尺度训练
+                    images, targets, shape = self.rescale_image_target(
+                        images, targets)
+                else:
+                    targets = self.refine_targets(targets)
 
-            with th.autocast(device_type=self.device_type,
-                             dtype=self.autocast_dtype,
-                             enabled=self.amp_enabled):
+                with th.autocast(device_type=self.device_type,
+                                dtype=self.autocast_dtype,
+                                enabled=self.amp_enabled):
 
-                preds = model(images)
-                loss_dict = self.criterion(preds, targets)
-                loss = loss_dict["total_loss"] / self.accumulate
-
-            if self.use_grad_scaler:
-                assert self.scaler is not None
-                self.scaler.scale(loss).backward()
-            else:
-                loss.backward()
-
-            if (iter_i+1) % 10 == 0:
-                log = self.log_train(iter_i, epoch_size, loss_dict, shape)
-                print(log)
-
-            should_step = ((iter_i + 1) % self.accumulate ==
-                           0) or ((iter_i + 1) == epoch_size)
-            if not should_step:
-                continue
-
-            if self.grad_thresh > 0:
+                    preds = model(images)
+                    loss_dict = self.criterion(preds, targets)
+                    loss = loss_dict["total_loss"] / self.accumulate
+                progress.update(task_id, advance=1, loss=loss)
                 if self.use_grad_scaler:
                     assert self.scaler is not None
-                    self.scaler.unscale_(self.optimizer)
-                th.nn.utils.clip_grad_norm_(
-                    model.parameters(), max_norm=self.grad_thresh)
+                    self.scaler.scale(loss).backward()
+                else:
+                    loss.backward()
 
-            if self.use_grad_scaler:
-                assert self.scaler is not None
-                self.scaler.step(self.optimizer)
-                self.scaler.update()
-            else:
-                self.optimizer.step()
+                if (iter_i+1) % 10 == 0:
+                    log = self.log_train(iter_i, epoch_size, loss_dict, shape)
+                    self.loss_log.info(log)
 
-            self.optimizer.zero_grad()
+                should_step = ((iter_i + 1) % self.accumulate ==
+                            0) or ((iter_i + 1) == epoch_size)
+                if not should_step:
+                    continue
 
-        print(f"epoch done, cost: {time.time() - t0:.2f}s")
+                if self.grad_thresh > 0:
+                    if self.use_grad_scaler:
+                        assert self.scaler is not None
+                        self.scaler.unscale_(self.optimizer)
+                    th.nn.utils.clip_grad_norm_(
+                        model.parameters(), max_norm=self.grad_thresh)
+
+                if self.use_grad_scaler:
+                    assert self.scaler is not None
+                    self.scaler.step(self.optimizer)
+                    self.scaler.update()
+                else:
+                    self.optimizer.step()
+
+                self.optimizer.zero_grad()
+
+            logger.info(f"epoch done, cost: {time.time() - t0:.2f}s")
 
     def rescale_image_target(self,
                              image: th.Tensor,
@@ -240,7 +253,7 @@ class Trainer:
         return log
 
     def eval(self, model: YOLO):
-        print('Evaluation model ....')
+        logger.info('Evaluation model ....')
         model.eval()
         model.is_train = False
 
@@ -250,7 +263,7 @@ class Trainer:
         cur_map = self.evaluator.map
         if cur_map > self.best_map:
             self.best_map = cur_map
-            print('Saving epoch', self.cur_epoch+1)
+            logger.info('Saving epoch', self.cur_epoch+1)
             weight_name = 'model_best.pth' #默认的
             checkpoint_dir = Path(f'checkpoint')
             checkpoint_dir.mkdir(exist_ok=True)
@@ -266,7 +279,7 @@ class Trainer:
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description='training')
-    parser.add_argument('--device', default='mps', type=str)
+    parser.add_argument('--device', default='cuda', type=str)
     parser.add_argument('--img_size', default=480, type=int)
     parser.add_argument('--optim', default='sgd', type=str,
                         choices=['sgd', 'adam'], help='optimizer')
@@ -285,10 +298,11 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    device = args.device
+    device = get_device(args.device)
+    
     resume_state = None
   
-    model,critertion=build_net(args)
+    model,critertion=build_net(args,device)
 
     save_path = Path(r'checkpoint\{args.version}_best_model.pth')
     if args.resume:
@@ -301,7 +315,7 @@ if __name__ == '__main__':
 
     trainer = Trainer(
         dataset_param=dataset_param,
-        device=args.device,
+        device=device,
         img_size=args.img_size,
         model=model,
         criterion=critertion,

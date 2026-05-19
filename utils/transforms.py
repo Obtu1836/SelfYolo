@@ -40,7 +40,18 @@ class Compose:
     def __call__(self, img, boxes, label):
 
         for transform in self.series_transform:
-            img, boxes, label = transform(img, boxes, label)
+            res = transform(img, boxes, label)
+            if isinstance(res, tuple):
+                if len(res) == 3:
+                    img, boxes, label = res
+                elif len(res) == 4:
+                    img, boxes, label, _ = res
+                else:
+                    raise ValueError(
+                        f"Unexpected transform return length: {len(res)}")
+            else:
+                raise ValueError(
+                    "Transform must return a tuple (img, boxes, labels[, extra])")
 
         return img, boxes, label
 
@@ -179,14 +190,13 @@ class RandomSampleCrop(object):
             (None, None),
         )
 
-    def __call__(self, image, boxes: NDArray, labels=NDArray):
+    def __call__(self, image, boxes: NDArray, labels: NDArray | None):
         height, width, _ = image.shape
         # check
         if len(boxes) == 0:
             return image, boxes, labels
 
         while True:
-            # randomly choose a mode
             sample_id = np.random.randint(len(self.sample_options))
             mode = self.sample_options[sample_id]
             if mode is None:
@@ -246,7 +256,7 @@ class RandomSampleCrop(object):
                 current_boxes = boxes[mask, :].copy()
 
                 # take only matching gt labels
-                current_labels = labels[mask]
+                current_labels = labels[mask] if labels is not None else None
 
                 # should we use the box left and top corner or the crop's
                 current_boxes[:, :2] = np.maximum(current_boxes[:, :2],
@@ -272,41 +282,67 @@ class RandomHorizontalFlip(object):
         return image, boxes, classes
 
 
-class Resize:
-    def __init__(self, img_size=640):
+class LetterResize:
+    '''
+    在训练时 虽然这个函数返回4个值 但是在Compose中 会舍弃掉第4个值 也就是舍弃scale
+    在训练过程中并不需要scale 而在验证和测试时 会直接调用LetterResize 这样可以得到scale
+    的值
+    这个类 虽然实现了不产生畸变的缩放 但是在填充时 不是选择4个边都填充 而是只填充1个边,最多2个边
+    分别是底边和右边(当使用限制放大时 是2个边)
+    '''
+    def __init__(self, img_size: int = 640, limit_big: bool = True, stride: int = 32):
 
         self.img_size = img_size
+        self.limit_big = limit_big
+        self.stride = stride
 
-    def __call__(self, img, boxes, label):
-        orih, oriw = img.shape[:2]
-        image = cv2.resize(img, (self.img_size, self.img_size))
+    def __call__(self, image, boxes, label):
 
-        boxes[:, [0, 2]] = boxes[:, [0, 2]]/oriw*self.img_size
-        boxes[:, [1, 3]] = boxes[:, [1, 3]]/orih*self.img_size
+        h, w = image.shape[:2]
+        scale = self.img_size / max(h, w)
+        if self.limit_big:
+            scale = min(1, scale)
 
-        return image, boxes, label
+        newh, neww = int(round(scale * h)), int(round(scale * w))
+        if scale != 1:
+            ims = cv2.resize(image, dsize=(neww, newh),
+                             interpolation=cv2.INTER_LINEAR)
+        else:
+            ims = image
+
+        if boxes is not None:
+            boxes = boxes.copy()
+            boxes[:, [0, 2]] = boxes[:, [0, 2]] * scale
+            boxes[:, [1, 3]] = boxes[:, [1, 3]] * scale
+
+        dh, dw = self.img_size - newh, self.img_size - neww
+        new = cv2.copyMakeBorder(
+            ims, 0, dh, 0, dw, cv2.BORDER_CONSTANT, value=0)
+        return new, boxes, label, scale
 
 
 class Augmentation:
     '''
     一些常见的数据增强
     '''
+
     def __init__(self, img_size=640):
         self.img_size = img_size
-        self.transfroms = Compose([
+        self.transforms = Compose([
             ConvertFromInts(),
             PhotometricDistort(),
             Expand(),
             RandomSampleCrop(),                        # 随机剪裁
             RandomHorizontalFlip(),                    # 随机水平翻转
-            Resize(self.img_size)
+            # Resize(self.img_size)
+            LetterResize(self.img_size, True)
         ])
 
-    def __call__(self, img: NDArray, target: dict):
+    def __call__(self, img: NDArray, target):
 
         boxes = target['boxes'].copy()
         label = target['labels'].copy()
-        image, boxes, label = self.transfroms(img, boxes, label)
+        image, boxes, label = self.transforms(img, boxes, label)
 
         img_tensor = th.from_numpy(image).permute(2, 0, 1).contiguous().float()
         target['boxes'] = th.from_numpy(boxes).float()
@@ -322,30 +358,23 @@ class Baseaugmention:
     训练和验证时  需要传入target 测试时 target设置为None
 
     '''
+
     def __init__(self, img_size: int = 640):
 
         self.img_size = img_size
+        self.transforms = LetterResize(img_size, True, stride=32)
 
-    def __call__(self, img: NDArray, target: None):
-        orih, oriw = img.shape[:2]
-        image = cv2.resize(img, (self.img_size, self.img_size))
+    def __call__(self, img: NDArray, target):
 
-        if target is not None:
-            boxes = target['boxes'].copy()
-            labels = target['labels'].copy()
-
-            img_h, img_w = image.shape[:2]
-            boxes[..., [0, 2]] = boxes[..., [0, 2]] / oriw * img_w
-            boxes[..., [1, 3]] = boxes[..., [1, 3]] / orih * img_h
-            target['boxes'] = boxes
+        image, _, _, scale = self.transforms(img, None, None)
 
         img_tensor = th.from_numpy(image).permute(
             2, 0, 1).contiguous().float()
-        if target is not None:
-            target['boxes'] = th.from_numpy(boxes).float()
-            target['labels'] = th.from_numpy(labels).long()
 
-        return img_tensor, target
+        if target is not None:
+            target = target.copy()
+
+        return img_tensor, target, scale
 
 
 def build_transform(img_size: int, is_train: bool):
@@ -355,3 +384,14 @@ def build_transform(img_size: int, is_train: bool):
     else:
         transform = Baseaugmention(img_size)
     return transform
+
+
+if __name__ == '__main__':
+    
+    trans=Augmentation(640)
+
+    imgpath = r"D:\program\VOCdevkit\VOC2007\JPEGImages\000005.jpg"
+
+    img=cv2.imread(imgpath)
+
+    

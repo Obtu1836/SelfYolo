@@ -13,5 +13,6 @@ Evaloutput/*
 checkpoint/*
 commit.txt
 record.md
+/config/v1/.local*
 # Virtual environments
 .venv

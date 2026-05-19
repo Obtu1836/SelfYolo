@@ -1,12 +1,14 @@
 [project]
-name = "yolo"
+name = "SelfYolo"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "loguru>=0.7.3",
     "opencv-contrib-python>=4.13.0.92",
     "pyyaml>=6.0.3",
+    "rich>=15.0.0",
     "thop>=0.1.1.post2209072238",
     "torch>=2.6.0",
     "torchaudio>=2.6.0",

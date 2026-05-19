@@ -203,8 +203,8 @@ if __name__ == '__main__':
     for images, targets in loader:
         # print(images.shape,targets)
         # break
-        images = images.to(device)/255
+        # images = images.to(device)/255
 
-        pred = model(images)
-        print(pred)
+        # pred = model(images)
+        print(len(targets))
         break
