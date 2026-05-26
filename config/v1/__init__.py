@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 with open(r'config/v1/v1.yaml', 'r', encoding='utf-8') as f:
     v1config = yaml.safe_load(f)
 
-with open(r'config\v1\.local.yaml', 'r', encoding='utf-8') as f:
+with open(r'config/v1/.local.yaml', 'r', encoding='utf-8') as f:
     local_fig = yaml.safe_load(f)
 
 v1config.update(local_fig)

@@ -1,7 +1,7 @@
 import torch as th
 from torch.nn import functional as f
 from .matcher import Matcher
-from config.v2 import NetParam, net_param
+from config.v2 import NetParam
 from tools.NMS import cal_giou
 
 
@@ -11,7 +11,7 @@ class Critierion:
         self.num_class = net_param.num_class
         self.obj_weight, self.cls_weight, self.boxes_weight = net_param.weights
 
-        self.matcher = Matcher(self.num_class, 0.5, net_param.anchor_size)
+        self.matcher = Matcher(self.num_class, iou, net_param.anchor_size)
 
     def cal_loss_obj(self, pred_obj, gt_obj):
         loss = f.binary_cross_entropy_with_logits(
@@ -56,8 +56,6 @@ class Critierion:
         # loss_pos = loss_obj[pos_mask].sum() / num_pos
         # loss_neg = loss_obj[~pos_mask].sum() / num_neg
 
-        # noobj_weight = 0.2   # 建议从 0.1 开始调试（YOLO 常用较小的 noobj 权重）
-        # loss_obj = loss_pos + noobj_weight * loss_neg
 
         pred_pos_boxes = pred_boxes[pos_mask]
         gt_pos_boxes = gt_boxes[pos_mask]

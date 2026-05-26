@@ -1,7 +1,7 @@
 from torch.nn import functional as f
 from .matcher import Matcher
 from tools.NMS import cal_giou
-from config.v1 import NetParam,net_param
+from config.v1 import NetParam
 
 class Criterion:
     def __init__(self,net_param:NetParam,

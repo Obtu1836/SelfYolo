@@ -2,17 +2,17 @@ import torch as th
 from torch import nn 
 from .basic import Conv
 
-from config.v3 import cfg
+from config.v3 import cfg,NetParam
 
 class Head(nn.Module):
-    def __init__(self,cfg,in_dim:int,out_dim:int):
+    def __init__(self,cfg:NetParam,in_dim:int,out_dim:int):
         super().__init__()
 
         self.in_dim=in_dim
-        self.num_cls_head=cfg['net']['num_cls_head']
-        self.num_reg_head=cfg['net']['num_reg_head']
+        self.num_cls_head=cfg.num_cls_head
+        self.num_reg_head=cfg.num_reg_head
 
-        num_class=cfg['net']['num_class']
+        num_class=cfg.num_class
 
         cls_feats=[]
         self.cls_out_dim:int=int(max(out_dim,num_class))

@@ -148,7 +148,7 @@ if __name__ == '__main__':
     img_size = 640
     transform = build_transform(img_size, True)
     dataset = build_datasets(dataset_param.basepath,
-                             transform, img_size, False)
+                             transform, img_size, False )
     train_loader = build_dataloader(dataset, 64, 8)
 
     matcher = Matcher(20, 0.5, net_param.anchor_size)

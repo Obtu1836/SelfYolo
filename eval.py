@@ -59,11 +59,11 @@ class Evaluator:
             boxes, scores, labels = model(x)
             detect_time = round(time.time()-t0, 5)
             if len(boxes) > 0:
-                boxes = boxes.copy()
+                boxes = boxes.copy().astype(np.float32)
                 boxes /= scale
                 boxes[..., [0, 2]] = np.clip(boxes[..., [0, 2]], 0, w)
                 boxes[..., [1, 3]] = np.clip(boxes[..., [1, 3]], 0, h)
-                
+
             for j in range(len(self.labelmap)):
                 ind = np.where(labels == j)[0]
                 if len(ind) == 0:
@@ -312,6 +312,6 @@ if __name__ == '__main__':
     from Net.v1.yolo import build_yolo
     from config.v1 import net_param
     device = 'cuda'
-    model = build_yolo(net_param, device, 0.005, 0.5, False)
+    model = build_yolo(net_param, 640,device, 0.005, 0.5, False)
     model.to(device)
     eval.evaluate(model)

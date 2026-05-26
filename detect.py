@@ -69,12 +69,12 @@ def main(args, device, image_path):
     if ori_img is None:
         raise FileNotFoundError('img-path wrong')
 
-    if args.shape == 0:
+    if args.img_size == 0:
         origh_tmp, origw_tmp = ori_img.shape[:2]
         max_side = max(origh_tmp, origw_tmp)
         shape_for_letterbox = int(np.ceil(max_side / 32) * 32)
     else:
-        shape_for_letterbox = args.shape
+        shape_for_letterbox = args.img_size
 
     padded, scale = preprocess_with_transform(
         ori_img, shape_for_letterbox, stride=32)
@@ -99,14 +99,14 @@ def main(args, device, image_path):
 
 
 if __name__ == '__main__':
-    
+
     parser = argparse.ArgumentParser(description='test')
     parser.add_argument('--device', default='cpu', type=str)
-    parser.add_argument('--shape', default=640, type=int)
+    parser.add_argument('--img_size', default=640, type=int)
     parser.add_argument('--nms', default=0.5, type=float)
     parser.add_argument('--conf', default=0.35, type=float)
-    parser.add_argument('--version', '-v', default='v2',
-                        type=str, choices=['v1', 'v2'])
+    parser.add_argument('--version', '-v', default='v3',
+                        type=str, choices=['v1', 'v2', 'v3'])
     parser.add_argument('--topk', default=200, type=int)
 
     args = parser.parse_args()

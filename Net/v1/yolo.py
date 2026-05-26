@@ -15,6 +15,7 @@ from ..absnet import YOLO
 class Yolo(YOLO):
     def __init__(self,
                  cfg: NetParam,
+                 shape:int,
                  device: str,
                  conf_thresh: float,
                  nms_thresh: float,
@@ -46,7 +47,7 @@ class Yolo(YOLO):
 
     def forward(self, x):
         if not self.is_train:
-            return self.interface(x)
+            return self.inference(x)
         else:
             x = self.backbone(x)
             x = self.neck(x)
@@ -110,7 +111,7 @@ class Yolo(YOLO):
         return grid
 
     @th.no_grad()
-    def interface(self, x):
+    def inference(self, x):
         '''
         为简化 推理时 batch=1
         '''
@@ -151,8 +152,8 @@ class Yolo(YOLO):
         return bboxes, confs, labels
 
 
-def build_yolo(cfg, device, conf_thresh, nms_thresh, is_train):
-    model = Yolo(cfg, device, conf_thresh, nms_thresh, is_train)
+def build_yolo(cfg,shape, device, conf_thresh, nms_thresh, is_train):
+    model = Yolo(cfg, shape,device, conf_thresh, nms_thresh, is_train)
     return model
 
 
@@ -163,7 +164,7 @@ if __name__ == '__main__':
     device = 'mps'
 
     data = th.rand(64, 3, 480, 480).to(device)
-    model = build_yolo(netparam, device, 0.005, 0.2, False)
+    model = build_yolo(netparam,480, device, 0.005, 0.2, False)
     model.to(device)
     res = model(data)
     # print(model)

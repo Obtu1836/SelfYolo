@@ -1,9 +1,11 @@
 import argparse
 import time
+import math
 import random
 from pathlib import Path
 from typing import Callable, Optional
 from copy import deepcopy
+
 
 import torch as th
 from torch.nn import functional as f
@@ -23,24 +25,26 @@ from rich.progress import Progress, BarColumn, TextColumn, TimeRemainingColumn
 
 
 from Net.absnet import YOLO
+
+
 class Trainer:
     def __init__(
-                    self,
-                    dataset_param: DatasetParam,
-                    device: str,
-                    img_size: int,
-                    model:YOLO,
-                    criterion: Callable,
-                    optimizer_name: str,
-                    lr_scheduler_name: str,
-                    batch_size: int,
-                    amp: bool,
-                    mul_scale: bool,
-                    stride: int,
-                    epoches: int,
-                    resume: bool = False,
-                    resume_state: Optional[dict] = None,
-                ):
+        self,
+        dataset_param: DatasetParam,
+        device: str,
+        img_size: int,
+        model: YOLO,
+        criterion: Callable,
+        optimizer_name: str,
+        lr_scheduler_name: str,
+        batch_size: int,
+        amp: bool,
+        mul_scale: bool,
+        stride: int,
+        epoches: int,
+        resume: bool = False,
+        resume_state: Optional[dict] = None,
+    ):
         self.device = th.device(device)
         self.device_type = self.device.type
         self.best_map = float(resume_state.get('map', -1)
@@ -50,7 +54,7 @@ class Trainer:
         self.stride = stride
         self.grad_thresh = 10
         self.criterion = criterion
-        self.accumulate=1
+        self.accumulate = 1
 
         model_copy = deepcopy(model)
         model_copy.is_train = False
@@ -71,7 +75,7 @@ class Trainer:
         self.scaler: Optional[th.amp.GradScaler] = None  # type: ignore
         if self.device_type == "cuda":
             self.scaler = th.amp.GradScaler(  # type: ignore
-                enabled=self.use_grad_scaler,#控制梯度缩放是否开启
+                enabled=self.use_grad_scaler,  # 控制梯度缩放是否开启
             )
 
         # 构建预处理和数据集构造
@@ -112,17 +116,17 @@ class Trainer:
         self.evaluator = build_eval(
             dataset_param.basepath, self.testtransform, device)
 
-        self.loss_log=logger.bind(loss=True)
+        self.loss_log = logger.bind(loss=True)
 
-    def train(self, model:YOLO):
+    def train(self, model: YOLO):
         if self.mul_scale:
             logger.info("启用多尺度训练")
         for epoch in range(self.start_epoch, self.epoches):
             self.cur_epoch = epoch
             self.train_one_epoch(model)
             self.lr_scheduler.step()
-            if (self.cur_epoch+1) % 5 == 0:
-                self.eval(model)
+            # if (self.cur_epoch+1) % 5 == 0:
+            self.eval(model)
 
     def train_one_epoch(self, model: YOLO):
         model.train()
@@ -151,13 +155,13 @@ class Trainer:
                     targets = self.refine_targets(targets)
 
                 with th.autocast(device_type=self.device_type,
-                                dtype=self.autocast_dtype,
-                                enabled=self.amp_enabled):
+                                 dtype=self.autocast_dtype,
+                                 enabled=self.amp_enabled):
 
                     preds = model(images)
                     loss_dict = self.criterion(preds, targets)
                     loss = loss_dict["total_loss"] / self.accumulate
-                progress.update(task_id, advance=1, loss=loss)
+                progress.update(task_id, advance=1, loss=loss*self.accumulate)
                 if self.use_grad_scaler:
                     assert self.scaler is not None
                     self.scaler.scale(loss).backward()
@@ -169,7 +173,7 @@ class Trainer:
                     self.loss_log.info(log)
 
                 should_step = ((iter_i + 1) % self.accumulate ==
-                            0) or ((iter_i + 1) == epoch_size)
+                               0) or ((iter_i + 1) == epoch_size)
                 if not should_step:
                     continue
 
@@ -195,7 +199,7 @@ class Trainer:
                              image: th.Tensor,
                              target: dict,
                              min_box_size=4,
-                             muti_scale_range=[0.5, 1.3]):
+                             muti_scale_range=[0.6, 1.2]):
         '''
         多尺度训练 将一个batch内的照片 随机放大或者缩小一定的倍数
         需保证是网络最大下采样倍数的整数倍
@@ -205,8 +209,9 @@ class Trainer:
         old_shape = image.shape[-1]
         a, b = muti_scale_range
         # 随机生成倍数
-        new_shape = random.randrange(
-            int(a*old_shape), int(b*old_shape)+self.stride, self.stride)
+        min_n = math.ceil(a*old_shape/self.stride)
+        max_n = math.floor(b*old_shape/self.stride)
+        new_shape = random.randrange(min_n, max_n+1) * self.stride
         if new_shape/old_shape != 1:
             image = f.interpolate(input=image,
                                   size=new_shape,
@@ -219,7 +224,7 @@ class Trainer:
             boxes = th.clamp(boxes, 0, old_shape)
             boxes[:, :4] *= new_shape/old_shape
             delta_wh = boxes[:, 2:]-boxes[:, :2]
-            min_size = th.min(delta_wh, dim=-1)[0]#取最短边用来和阈值比较
+            min_size = th.min(delta_wh, dim=-1)[0]  # 取最短边用来和阈值比较
             ind = min_size >= min_box_size
             tgt['boxes'] = boxes[ind]
             tgt['labels'] = labels[ind]
@@ -247,8 +252,8 @@ class Trainer:
         for k in loss_dict.keys():
             log += f'[{k}: {loss_dict[k]:.4f} ]'
         log += f'[Size:{new_shape}]'
-        cur_lr=(self.lr_scheduler.get_last_lr()[0])
-        log+=f" lr: {round(cur_lr,6)}" #type: ignore
+        cur_lr = (self.lr_scheduler.get_last_lr()[0])
+        log += f" lr: {round(cur_lr, 6)}"  # type: ignore
 
         return log
 
@@ -264,7 +269,7 @@ class Trainer:
         if cur_map > self.best_map:
             self.best_map = cur_map
             logger.info('Saving epoch', self.cur_epoch+1)
-            weight_name = 'model_best.pth' #默认的
+            weight_name = 'model_best.pth'  # 默认的
             checkpoint_dir = Path(f'checkpoint')
             checkpoint_dir.mkdir(exist_ok=True)
             checkpoint_path = checkpoint_dir/weight_name
@@ -285,7 +290,7 @@ if __name__ == '__main__':
                         choices=['sgd', 'adam'], help='optimizer')
     parser.add_argument('--sche', default='linear', type=str,
                         choices=['linear', 'cosine'])
-    parser.add_argument('--topk',default=1000,type=int)
+    parser.add_argument('--topk', default=1000, type=int)
     parser.add_argument('--batch_size', default=64, type=int)
     parser.add_argument('-ms', action='store_true', default=False)
     parser.add_argument('--epochs', default=150, type=int)
@@ -294,17 +299,17 @@ if __name__ == '__main__':
     parser.add_argument('-r', '--resume', action='store_true', default=False)
     parser.add_argument("-amp", action="store_true",
                         default=False, help="enable mixed precision")
-    parser.add_argument('--version','-v',default='v2',type=str)
+    parser.add_argument('--version', '-v', default='v2', type=str)
 
     args = parser.parse_args()
 
     device = get_device(args.device)
-    
-    resume_state = None
-  
-    model,critertion=build_net(args,device)
 
-    save_path = Path(r'checkpoint\{args.version}_best_model.pth')
+    resume_state = None
+
+    model, critertion = build_net(args, device)
+
+    save_path = Path(r'checkpoint\model_best.pth')
     if args.resume:
         checkpoint = th.load(
             save_path, map_location=device, weights_only=False)
