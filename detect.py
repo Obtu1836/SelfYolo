@@ -61,7 +61,7 @@ def drawing(img: NDArray, bboxes: NDArray, scores: NDArray, labels: NDArray):
 
 def main(args, device, image_path):
     weight_path = Path(
-        r'checkpoint/{}_model_best.pth'.format(args.version))
+        r'checkpoint/model_best.pth'.format(args.version))
     model = load_model(args, device, weight_path)
 
     img_path = image_path
@@ -112,7 +112,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
     device = get_device(args.device)
 
-    # image_path = r'/Users/mac/program/VOCdevkit/VOC2007x/JPEGImages/000715.jpg'
+    # img_path = r'/Users/mac/program/VOCdevkit/VOC2007x/JPEGImages/000715.jpg'
     img_path = random_test_img()
 
     main(args, device, img_path)

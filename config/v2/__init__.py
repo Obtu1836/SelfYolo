@@ -12,12 +12,16 @@ class NetParam:
     num_class: int
     weights: list[float]=field(default_factory=list)
     anchor_size: list[list] = field(default_factory=list)
+    anchor_base_size:int=416
+    max_stride: int=32
 
 
 net = cfg['net']
 net_param = NetParam(num_cls_head=net['num_cls_head'],
                      num_reg_head=net['num_reg_head'],
                      anchor_size=net['anchor_size'],
+                     anchor_base_size=net['anchor_base_size'],
+                     max_stride=net['max_stride'],
                      num_class=net['num_class'],
                      weights=net['weights'])
 

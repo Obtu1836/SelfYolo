@@ -11,7 +11,7 @@ class Critierion:
         self.num_class = net_param.num_class
         self.obj_weight, self.cls_weight, self.boxes_weight = net_param.weights
 
-        self.matcher = Matcher(self.num_class, iou, net_param.anchor_size)
+        self.matcher = Matcher(self.num_class, iou, net_param.anchor_size,net_param.anchor_base_size)
 
     def cal_loss_obj(self, pred_obj, gt_obj):
         loss = f.binary_cross_entropy_with_logits(

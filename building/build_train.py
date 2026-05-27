@@ -19,7 +19,7 @@ def build_net(args, device: str, is_train: bool = True):
         from Match.v2.loss import build_criterion
         from Net.v2.yolo import build_yolo
 
-        model = build_yolo(net_param, args.img_size, device, args.conf, args.nms,
+        model = build_yolo(net_param, device, args.conf, args.nms,
                            args.topk, is_train)
         critertion = build_criterion(net_param, args)
 

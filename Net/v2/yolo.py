@@ -12,7 +12,7 @@ from ..absnet import YOLO
 
 class Yolo(YOLO):
     def __init__(self,  cfg: NetParam,
-                 shape: int,
+
                  device: str,
                  conf: float,
                  nms: float,
@@ -27,8 +27,9 @@ class Yolo(YOLO):
         self.conf = conf
         self.num_class = cfg.num_class
         self.topk = topk
-        self.stride = 32
-        self.base = shape
+
+        self.stride = cfg.max_stride
+        self.base = cfg.anchor_base_size
         self.is_train = is_train
 
         self.anchor_size = th.as_tensor(cfg.anchor_size).float().view(-1, 2)
@@ -188,8 +189,8 @@ class Yolo(YOLO):
         return boxes, scores, labels
 
 
-def build_yolo(cfg, shape, device, conf, nms, topk, is_train):
-    model = Yolo(cfg, shape, device, conf, nms, topk, is_train)
+def build_yolo(cfg, device, conf, nms, topk, is_train):
+    model = Yolo(cfg,  device, conf, nms, topk, is_train)
     return model
 
 
@@ -201,7 +202,7 @@ if __name__ == '__main__':
     data = th.rand(64, 3, 224, 224)
     device = 'cuda'
     data = data.to(device)
-    net = build_yolo(net_param, 224, device, 1e-5, 0.5, 10, True)
+    net = build_yolo(net_param, device, 1e-5, 0.5, 10, True)
     net.to(device)
     output = net(data)
     print(output)

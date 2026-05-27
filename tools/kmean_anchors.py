@@ -3,6 +3,7 @@ from dataclasses import dataclass
 import numpy as np
 from numpy.typing import NDArray
 from config.v1 import dataset_param
+from config.v2 import net_param
 '''
 注释的代码 是利用循环编写如何使用kmean方法聚类anchor 优点是简单易懂 缺点是 慢
 '''
@@ -30,8 +31,10 @@ def collect_voc_box(path, input_size: int,use_letter:bool=True):
             box = box_label[:-1]
             x1, y1, x2, y2 = box
             if use_letter:
-                bw = (x2-x1)/max(img_h, img_w)*input_size #letterbox归一化并放大到输入图像的尺寸
-                bh = (y2-y1)/max(img_h, img_w)*input_size
+                scalew=min(1,(x2-x1)/max(img_h,img_w))
+                scaleh=min(1,(y2-y1)/max(img_w,img_h))
+                bw = scalew*input_size #letterbox归一化并放大到输入图像的尺寸
+                bh = scaleh*input_size
             else:
                 bw=(x2-x1)/img_w*input_size # 这是不加入letterbox时的归一化和缩放
                 bh=(y2-y1)/img_h*input_size
@@ -195,10 +198,11 @@ def sort_boxes(boxes:NDArray):
 
 def main():
     # path = r"/Users/mac/program/VOCdevkit"
+    
     path=dataset_param.basepath
-    boxes=collect_voc_box(path,416,use_letter=True)
+    boxes=collect_voc_box(path,net_param.anchor_base_size,use_letter=True)
     boxes=box_to_array(boxes)
-    anchors=anchor_box_kmean(boxes,9,1e-6)
+    anchors=anchor_box_kmean(boxes,5,1e-6)
     # anchors=anchor_box_kmean(boxes,5,20000,plus=False)
     # print(anchors)
     new=sort_boxes(anchors)

@@ -114,7 +114,7 @@ class Trainer:
         # logger.info('scaler restored:', self.scaler is not None)
 
         self.evaluator = build_eval(
-            dataset_param.basepath, self.testtransform, device)
+            dataset_param.basepath, self.testtransform, device,img_size)
 
         self.loss_log = logger.bind(loss=True)
 
@@ -125,8 +125,8 @@ class Trainer:
             self.cur_epoch = epoch
             self.train_one_epoch(model)
             self.lr_scheduler.step()
-            # if (self.cur_epoch+1) % 5 == 0:
-            self.eval(model)
+            if (self.cur_epoch+1) % 5 == 0:
+                self.eval(model)
 
     def train_one_epoch(self, model: YOLO):
         model.train()
@@ -266,6 +266,7 @@ class Trainer:
             self.evaluator.evaluate(model)
 
         cur_map = self.evaluator.map
+        self.loss_log.info(f'map: {round(cur_map,4)}')
         if cur_map > self.best_map:
             self.best_map = cur_map
             logger.info('Saving epoch', self.cur_epoch+1)

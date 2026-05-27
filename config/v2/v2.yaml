@@ -1,11 +1,14 @@
 net:
     num_cls_head: 2
     num_reg_head: 2
-    anchor_size: [[38,64],
-                  [89,147],
-                  [145,285],
-                  [258,169],
-                  [330,340]]
+    anchor_size: [[36,48],
+                  [89,111],
+                  [140,224],
+                  [263,134],
+                  [311,277]]
+
+    max_stride: 32
+    anchor_base_size: 416
     num_class: 20
     weights: [1.0,1.0,5.0]
 

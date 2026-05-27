@@ -6,19 +6,20 @@ from numpy.typing import NDArray
 class Matcher:
     def __init__(self, num_class: int,
                  iou_thresh: float,
-                 anchor_size: list):
+                 anchor_size: list,
+                 anchor_base_size:int):
 
         self.num_class = num_class
         self.iou_thresh = iou_thresh
         self.anchor_size = anchor_size
-        self.base_anchor=416
+        self.base_anchor=anchor_base_size
         self.num_anchor = len(anchor_size)
 
         self.anchor_box = np.array([[0, 0, anchor[0], anchor[1]]
                                    for anchor in anchor_size], dtype=np.float32)
 
     @th.no_grad()
-    def __call__(self, fmp_size: th.Tensor, stride: int, targets: list[dict[str, NDArray]]):
+    def __call__(self, fmp_size: th.Size, stride: int, targets: list[dict[str, NDArray]]):
         '''
         按batch 拼接的标签组 在dataset.py中 一个batch的标签以列表内元素为字典的格式返回
         【{'boxes':[[N,4],[N,4]] 二维数组,
@@ -151,13 +152,12 @@ if __name__ == '__main__':
                              transform, img_size, False )
     train_loader = build_dataloader(dataset, 64, 8)
 
-    matcher = Matcher(20, 0.5, net_param.anchor_size)
-    fmp_size = th.Tensor([20, 20])
+    matcher = Matcher(20, 0.5, net_param.anchor_size,
+                      net_param.anchor_base_size)
+    fmp_size = th.Size([20, 20])
     for image, target in train_loader:
         gt_obj, gt_cls, gt_boxes = matcher(fmp_size, 32, target)
 
         print(gt_cls[0][1])
         break
 
-    # a,b,c=matcher(13,32,target)
-    # print(a.dtype)

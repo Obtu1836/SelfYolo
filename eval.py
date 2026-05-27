@@ -295,8 +295,8 @@ def parse_element(obj: ET.Element, tag: str):
     return int(node.text)
 
 
-def build_eval(path, transform, device):
-    return Evaluator(path, transform, device)
+def build_eval(path, transform, device,img_size):
+    return Evaluator(path, transform, device,img_size)
 
 
 if __name__ == '__main__':
