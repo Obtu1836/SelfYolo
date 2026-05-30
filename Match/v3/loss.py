@@ -31,7 +31,7 @@ class Crieterion:
         gt_boxes=gt_boxes.view(-1,4).to(device)
 
         pos_mask=gt_obj>0
-        pos_num=pos_mask.sum()
+        pos_num=pos_mask.sum().clamp(min=1)
 
         obj_loss=self.cal_obj_loss(pred_obj,gt_obj)
         obj_loss=obj_loss.sum()/pos_num

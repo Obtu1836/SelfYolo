@@ -61,7 +61,7 @@ def drawing(img: NDArray, bboxes: NDArray, scores: NDArray, labels: NDArray):
 
 def main(args, device, image_path):
     weight_path = Path(
-        r'checkpoint/model_best.pth'.format(args.version))
+        r'checkpoint/{}_model_best.pth'.format(args.version))
     model = load_model(args, device, weight_path)
 
     img_path = image_path

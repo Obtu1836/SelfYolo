@@ -127,6 +127,7 @@ class Trainer:
             self.lr_scheduler.step()
             if (self.cur_epoch+1) % 5 == 0:
                 self.eval(model)
+            self.save_state(model,'last')
 
     def train_one_epoch(self, model: YOLO):
         model.train()
@@ -199,7 +200,7 @@ class Trainer:
                              image: th.Tensor,
                              target: dict,
                              min_box_size=4,
-                             muti_scale_range=[0.6, 1.2]):
+                             muti_scale_range=[0.5, 1]):
         '''
         多尺度训练 将一个batch内的照片 随机放大或者缩小一定的倍数
         需保证是网络最大下采样倍数的整数倍
@@ -270,17 +271,32 @@ class Trainer:
         if cur_map > self.best_map:
             self.best_map = cur_map
             logger.info('Saving epoch', self.cur_epoch+1)
-            weight_name = 'model_best.pth'  # 默认的
-            checkpoint_dir = Path(f'checkpoint')
-            checkpoint_dir.mkdir(exist_ok=True)
-            checkpoint_path = checkpoint_dir/weight_name
-            th.save({'model': model.state_dict(),
-                     'map': round(self.best_map, 3),
-                     'optimizer': self.optimizer.state_dict(),
-                     'lr_scheduler': self.lr_scheduler.state_dict(),
-                     'scaler': self.scaler.state_dict() if self.scaler else None,
-                     'epoch': self.cur_epoch}, checkpoint_path)
+            # weight_name = 'model_best.pth'  # 默认的
+            # checkpoint_dir = Path(f'checkpoint')
+            # checkpoint_dir.mkdir(exist_ok=True)
+            # checkpoint_path = checkpoint_dir/weight_name
+            # th.save({'model': model.state_dict(),
+            #          'map': round(self.best_map, 3),
+            #          'optimizer': self.optimizer.state_dict(),
+            #          'lr_scheduler': self.lr_scheduler.state_dict(),
+            #          'scaler': self.scaler.state_dict() if self.scaler else None,
+            #          'epoch': self.cur_epoch}, checkpoint_path)
+            self.save_state(model)
+            
+    def save_state(self,model,name='best'):
 
+        weight_name = f'model_{name}.pth'  
+        checkpoint_dir = Path(f'checkpoint')
+        checkpoint_dir.mkdir(exist_ok=True)
+        checkpoint_path = checkpoint_dir/weight_name
+
+        th.save({'model': model.state_dict(),
+                 'map': round(self.best_map, 3),
+                 'optimizer': self.optimizer.state_dict(),
+                 'lr_scheduler': self.lr_scheduler.state_dict(),
+                 'scaler': self.scaler.state_dict() if self.scaler else None,
+                 'epoch': self.cur_epoch}, checkpoint_path)
+        
 
 if __name__ == '__main__':
 
