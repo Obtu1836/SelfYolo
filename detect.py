@@ -102,12 +102,12 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description='test')
     parser.add_argument('--device', default='cpu', type=str)
-    parser.add_argument('--img_size', default=640, type=int)
+    parser.add_argument('--img_size', default=416, type=int)
     parser.add_argument('--nms', default=0.5, type=float)
     parser.add_argument('--conf', default=0.35, type=float)
     parser.add_argument('--version', '-v', default='v3',
                         type=str, choices=['v1', 'v2', 'v3'])
-    parser.add_argument('--topk', default=200, type=int)
+    parser.add_argument('--topk', default=300, type=int)
 
     args = parser.parse_args()
     device = get_device(args.device)
