@@ -21,18 +21,18 @@ class Evaluator:
         self.transform = transform
         self.device = device
 
-        self.anno_path = lambda x: self.bashpath.joinpath('VOC2007x',
+        self.anno_path = lambda x: self.bashpath.joinpath('VOC2007',
                                                           'Annotations', '{}.xml'.format(x))
-        self.imgpath = lambda x: self.bashpath.joinpath('VOC2007x', 'JPEGImages',
+        self.imgpath = lambda x: self.bashpath.joinpath('VOC2007', 'JPEGImages',
                                                         '{}.jpg'.format(x))
-        self.imgsetspath = self.bashpath.joinpath('VOC2007x', 'ImageSets',
+        self.imgsetspath = self.bashpath.joinpath('VOC2007', 'ImageSets',
                                                   'Main', 'test.txt')
         self.output_dir = Path('Evaloutput')
         self.output_dir.mkdir(exist_ok=True)
         self.dataset = VOCDection(self.bashpath,
                                   img_size,
                                   transform=self.transform,
-                                  img_sets=[('2007x', 'test')],
+                                  img_sets=[('2007', 'test')],
                                   )
         self.labelmap = VOC_CLASSES
 

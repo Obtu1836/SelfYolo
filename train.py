@@ -42,6 +42,7 @@ class Trainer:
         mul_scale: bool,
         stride: int,
         epoches: int,
+        eval_epoch:int,
         resume: bool = False,
         resume_state: Optional[dict] = None,
     ):
@@ -55,6 +56,7 @@ class Trainer:
         self.grad_thresh = 10
         self.criterion = criterion
         self.accumulate = 1
+        self.eval_epoch=eval_epoch
 
         model_copy = deepcopy(model)
         model_copy.is_train = False
@@ -125,7 +127,7 @@ class Trainer:
             self.cur_epoch = epoch
             self.train_one_epoch(model)
             self.lr_scheduler.step()
-            if (self.cur_epoch+1) % 5 == 0:
+            if (self.cur_epoch+1) % self.eval_epoch == 0:
                 self.eval(model)
             self.save_state(model,'last')
 
@@ -304,19 +306,21 @@ if __name__ == '__main__':
     parser.add_argument('--device', default='cuda', type=str)
     parser.add_argument('--img_size', default=480, type=int)
     parser.add_argument('--optim', default='sgd', type=str,
-                        choices=['sgd', 'adam'], help='optimizer')
+                        choices=['sgd', 'adam'], help='选择优化器')
     parser.add_argument('--sche', default='linear', type=str,
-                        choices=['linear', 'cosine'])
+                        choices=['linear', 'cosine'],help='训练时多少个epoch验证一次')
+    parser.add_argument('--eval_epoch',default=1,type=int)
     parser.add_argument('--topk', default=1000, type=int)
     parser.add_argument('--batch_size', default=64, type=int)
-    parser.add_argument('-ms', action='store_true', default=False)
+    parser.add_argument('-ms', action='store_true', default=False,help='开启多尺度训练')
     parser.add_argument('--epochs', default=150, type=int)
     parser.add_argument('--nms', default=0.5, type=float)
     parser.add_argument('--conf', default=0.005, type=float)
     parser.add_argument('-r', '--resume', action='store_true', default=False)
     parser.add_argument("-amp", action="store_true",
-                        default=False, help="enable mixed precision")
-    parser.add_argument('--version', '-v', default='v2', type=str)
+                        default=False, help="开启混合精度和梯度缩放")
+    parser.add_argument('--version', '-v', default='v2', type=str,
+                        choices=['v1','v2','v3'],help='选择版本')
 
     args = parser.parse_args()
 
@@ -348,6 +352,7 @@ if __name__ == '__main__':
         mul_scale=args.ms,
         stride=net_param.stride,
         epoches=args.epochs,
+        eval_epoch=args.eval_epoch,
         resume=args.resume,
         resume_state=resume_state,
     )

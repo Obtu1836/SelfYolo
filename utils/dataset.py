@@ -144,7 +144,7 @@ def build_datasets(basepath: str,
     if is_train:
         img_sets = [('2007', 'trainval'), ('2012', 'trainval')]
     else:
-        img_sets = [('2007x', 'test')]
+        img_sets = [('2007', 'test')]
     dataset = VOCDection(basepath, img_size, img_sets=img_sets,
                          transform=transform)
 
@@ -172,13 +172,13 @@ if __name__ == '__main__':
     from Net.v1.yolo import build_yolo
 
     is_train = True
-    img_size = 480
+    img_size = 416
     transform = build_transform(img_size, is_train)
     dataset = build_datasets(dataset_param.basepath, transform,
                              img_size, is_train=is_train)
 
     device = 'cuda'
-    model = build_yolo(net_param, 'cuda', 0.001, 0.5, is_train)
+    model = build_yolo(net_param, img_size,'cuda', 0.001, 0.5, is_train,)
     model.to(device)
 
     # p=np.random.randint(0,2000)
